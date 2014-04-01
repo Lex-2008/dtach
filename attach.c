@@ -42,6 +42,8 @@ restore_term(void)
 
 	/* Make cursor visible. Assumes VT100. */
 	printf("\033[?25h");
+	/* disable mouse capturing. Assumes X11 or something. */
+	printf("\033[?1000l");
 	fflush(stdout);
 }
 

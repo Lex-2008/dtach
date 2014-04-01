@@ -58,6 +58,9 @@ static struct pty the_pty;
 static unsigned char scrollback[SCROLLSIZE];
 static int scroll_end, scroll_full;
 
+/* if mouse capturing is on */
+int mouse_cap=0;
+
 #ifndef HAVE_FORKPTY
 pid_t forkpty(int *amaster, char *name, struct termios *termp,
 	struct winsize *winp);
@@ -361,7 +364,20 @@ top:
 	if (!FD_ISSET(s, &readfds) && nclients == 0)
 		goto top;
 
-        write_scrollback( buf, len );
+	write_scrollback( buf, len );
+	/* Scan buffer for mouse capture codes */
+	int scanned = 0;
+	while (scanned < len)
+	{
+		unsigned char * esc; //position of Esc symbol
+		esc = memchr(buf+scanned, '\033', len - scanned);
+		if(esc == NULL) break;
+		if(memcmp(esc, "\033[?1000h", 8)==0)
+			mouse_cap=1;
+		if(memcmp(esc, "\033[?1000l", 8)==0)
+			mouse_cap=0;
+		scanned = esc-buf+1;
+	}
 }
 
 /* Process activity on the control socket */
@@ -391,7 +407,9 @@ control_activity(int s)
 		p->next->pprev = &p->next;
 	*(p->pprev) = p;
 
-        send_scrollback( p );
+	send_scrollback( p );
+	if(mouse_cap) write(p->fd, "\033[?1000h", 8);
+
 }
 
 /* Process activity from a client. */
